@@ -1,0 +1,24 @@
+name: ChoppingMachine
+version: '${project.version}'
+main: net.nasiridrishi.choppingmachine.ChoppingMachine
+api-version: '1.17'
+author: Nasir Idrishi
+softdepend:
+  - DecentHolograms
+permissions:
+  choppingmachine.admin:
+    description: Allows the player to use the chopping machine
+    default: op
+    children:
+      choppingmachine.use.place:
+        description: Allows the player to place the chopping machine
+        default: op
+      choppingmachine.use.break:
+        description: Allows the player to break the chopping machine
+        default: op
+      choppingmachine.break.owneroverride:
+        description: Allows the player to break the chopping machine even if they are not the owner
+        default: op
+      choppingmachine.command.give:
+        description: Allows the player to give themselves a chopping machine
+        default: op
