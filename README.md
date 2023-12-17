@@ -52,6 +52,13 @@ chopping machines:
 2. Make sure to install dependent hologram plugin:
    DecentHolograms: https://www.spigotmc.org/resources/decentholograms-1-8-1-20-2-papi-support-no-dependencies.96927/
 
+## Special features
+
+1. If there is a mushroom/flowers around the machine, machine will destroy itself and drop machine
+   item.
+2. Machine will get a insta boost and chop down all found tree logs instantly if it comes in contact
+   with Spong or Ice Block.
+
 ## Commands(/chopper)
 
 - /chopper give <player> <machineType> - Gives player a chopping machine of given type. [Permission:
