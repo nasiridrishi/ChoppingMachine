@@ -75,3 +75,13 @@ chopping machines:
 - NBTAPI for handling NBT data: https://github.com/tr7zw/Item-NBT-API
 - ParticleNativeAPI for efficient particle
   handling: https://github.com/Fierioziy/ParticleNativeAPI
+- CommandApi for handling commands: https://github.com/JorelAli/CommandAPI
+
+---
+
+
+**Note:** I was not able to complete task: Special Block Interactions -> "Water: Should float and
+keep going on." because I could not understand what it actually meant. I am assuming it meant that
+the machine should float on water and keep going on. I tried to implement this but was not able to
+do so. I am not sure if I understood the task correctly.
+
