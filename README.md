@@ -48,7 +48,7 @@ chopping machines:
 ## Installation
 
 1. Requires spigot version 1.17 or above. I am quite certain it will work as low as for 1.3 but have not
-   tested.
+   tested. (Tests were done on 1.20.2)
 2. Make sure to install dependent hologram plugin:
    DecentHolograms: https://www.spigotmc.org/resources/decentholograms-1-8-1-20-2-papi-support-no-dependencies.96927/
 
