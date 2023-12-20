@@ -8,6 +8,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Logger;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
@@ -23,6 +24,7 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.Chest;
 import org.bukkit.inventory.ItemStack;
+import org.patheloper.api.pathing.result.PathState;
 
 /**
  * A machine instance is a machine that has been placed in the world.
@@ -33,7 +35,7 @@ public class MachineInstance {
   @Getter
   private final BaseMachine type;
   @Getter
-  private final Location location;
+  private Location location;
   @Getter
   private final UUID owner;
   /**
@@ -53,8 +55,17 @@ public class MachineInstance {
   @Getter
   private Material lastChoppedLog;
 
+  private Block nextTreePos;
+
+  private MachinePath pathToTree;
+
   public MachineInstance(@NonNull BaseMachine type, @NonNull Location location,
       @NonNull UUID owner) {
+
+    Objects.requireNonNull(type, "type cannot be null");
+    Objects.requireNonNull(location, "location cannot be null");
+    Objects.requireNonNull(owner, "owner cannot be null");
+
     this.type = type;
     this.location = location;
     this.owner = owner;
@@ -64,6 +75,7 @@ public class MachineInstance {
     if (block.getState() instanceof Chest) {
       this.chest = (Chest) block.getState();
     }
+
   }
 
   public void destroy() {
@@ -115,6 +127,11 @@ public class MachineInstance {
   }
 
   public void onTick() {
+    //check if owner is online
+    if (Bukkit.getPlayer(owner) == null) {
+      return;
+    }
+    //check if machine is in loaded chunk
     if (!isInLoadedChunk()) {
       ChoppingMachine.getInstance().getLogger().warning("Tried to tick machine in unloaded chunk");
       lastChoppedLog = null;
@@ -122,11 +139,6 @@ public class MachineInstance {
     }
     if (!checkCounter() || !verify()) {
       lastChoppedLog = null;
-      return;
-    }
-
-    //check for destructive blocks around machine
-    if (checkDestructiveNearby()) {
       return;
     }
 
@@ -146,21 +158,26 @@ public class MachineInstance {
         if (isInLoadedChunk(block.getX() >> 4, block.getZ() >> 4)) {
           type.attemptChop(this, block);
         }
-        //marking as chopped even if actually not chopped to remove it from list anyway.
         choppedBlock.set(block);
         this.lastChoppedLog = block.getType();
       });
       if (choppedBlock.get() != null) {
         foundLogs.remove(choppedBlock.get());
       }
-    } else if (!searchingTree) {
-      this.status = "§eSearching for Tree..";
-      lastChoppedLog = null;
-      searchingTree = true;
-      searchForTree();
+    } else if (nextTreePos == null) {
+      if (!searchingTree) {
+        this.status = "§eSearching for Tree..";
+        lastChoppedLog = null;
+        searchingTree = true;
+        searchForTree();
+      }
+    } else {
+      this.status = "§eMoving to Tree..";
+      handleMoveToTree();
     }
     updateHologram();
   }
+
 
   public void updateHologram() {
     if (hologram != null) {
@@ -173,28 +190,6 @@ public class MachineInstance {
   /**
    * Searches for a tree in a radius around the machine
    */
-//  private void searchForTree() {
-//    Bukkit.getScheduler().runTaskAsynchronously(ChoppingMachine.getInstance(), () -> {
-//      int radius = type.getSearchRadius();
-//      for (int x = -radius; x <= radius; x++) { //x axis
-//        for (int y = -radius; y <= radius; y++) { //y axis
-//          for (int z = -radius; z <= radius; z++) { //z axis
-//            Location location = this.location.clone();
-//            Block block = location.add(x, y, z).getBlock();
-//            if (!isInLoadedChunk(block.getX() >> 4, block.getZ() >> 4)) {
-//              continue;
-//            }
-//            if (type.isWoodenLog(block.getType())) {
-//              foundLogs.addAll(getConnectedLogs(block, null));
-//              searchingTree = false;
-//              return;
-//            }
-//          }
-//        }
-//      }
-//      searchingTree = false;
-//    });
-//  }
   private void searchForTree() {
     Bukkit.getScheduler().runTaskAsynchronously(ChoppingMachine.getInstance(), () -> {
       int radius = type.getSearchRadius();
@@ -213,7 +208,8 @@ public class MachineInstance {
                   continue;
                 }
                 if (type.isWoodenLog(block.getType())) {
-                  foundLogs.addAll(getConnectedLogs(block, null));
+                  //foundLogs.addAll(getConnectedLogs(block, null));
+                  nextTreePos = block;
                   searchingTree = false;
                   return;
                 }
@@ -226,13 +222,88 @@ public class MachineInstance {
     });
   }
 
+  private Logger logger() {
+    return ChoppingMachine.getInstance().getLogger();
+  }
+
+  private void handleMoveToTree() {
+    if (nextTreePos.getLocation().distanceSquared(location) <= 2) {
+      logger().info("Reached at tree pos");
+      this.foundLogs.addAll(findConnectedLogs(nextTreePos, null));
+      nextTreePos = null;
+      pathToTree = null;
+      return;
+    }
+    if (checkBoosters() || checkDestructiveNearby()) {
+      logger().info("Found booster or destructive block");
+      return;
+    }
+    if (pathToTree == null) {
+      logger().info("Path to tree is null, creating new path");
+      pathToTree = new MachinePath(MachineManager.getInstance().getPathfinder(), this.getLocation(),
+          nextTreePos.getLocation());
+    }
+    if (pathToTree.getPathStatus() == null) {
+      logger().info("Path to tree status is null");
+      return;
+    }
+    if (pathToTree.getPathStatus() == PathState.FAILED) {
+      logger().info("Path to tree failed");
+      nextTreePos = null;
+      pathToTree = null;
+      return;
+    }
+    if (pathToTree.getPathStatus() == PathState.FALLBACK) {
+      logger().info("Path to tree fellback");
+      return;
+    }
+    if (pathToTree.getPathStatus() == PathState.LENGTH_LIMITED) {
+      logger().info("Path to tree length limited");
+      return;
+    }
+    if (pathToTree.getPathStatus() == PathState.MAX_ITERATIONS_REACHED) {
+      logger().info("Path to tree max iterations reached");
+      return;
+    }
+    Location nextPos = pathToTree.getNextPos();
+    if (nextPos == null) {
+      logger().info("Next pos is null");
+      nextTreePos = null;
+      pathToTree = null;
+      return;
+    }
+    Location newPos = nextPos.clone();
+    logger().info("Moving to next pos");
+    //move blocks
+    location.getBlock().setType(Material.AIR);
+    nextPos.getBlock().setType(type.getMachineBlockMaterial());
+    //move chest if chest is placed
+    if (chest != null) {
+      logger().info("Moving chest");
+      //move chest
+      //set chest to new Position
+      nextPos.clone().add(0, 1, 0).getBlock().setType(Material.CHEST);
+      //get new chest state
+      Chest chest = (Chest) nextPos.clone().add(0, 1, 0).getBlock().getState();
+      //set chest inventory to old chest inventory
+      chest.getInventory().setContents(this.chest.getInventory().getContents());
+      //remove old chest
+      this.chest.getBlock().setType(Material.AIR);
+      //set new chest
+      this.chest = chest;
+    }
+    MachineManager.getInstance().getMachineStorage().updateMachineLocation(location,
+        newPos);
+    this.location = newPos;
+  }
+
 
   /**
    * Recursive method to get all connected logs to a log
    * <p>
    * exploring in all directions to find connected logs
    */
-  private Set<Block> getConnectedLogs(Block primaryLog, Set<Block> foundLogs) {
+  private Set<Block> findConnectedLogs(Block primaryLog, Set<Block> foundLogs) {
     if (foundLogs == null) {
       foundLogs = new HashSet<>();
     }
@@ -240,73 +311,30 @@ public class MachineInstance {
     if (!foundLogs.contains(primaryLog) && type.isWoodenLog(primaryLog.getType())) {
       foundLogs.add(primaryLog);
 
-      // Directions to explore: up, down, left, right, up-left, up-right, down-left, down-right
-      int[][] directions = {{0, 1, 0}, {0, -1, 0}, {1, 0, 0}, {-1, 0, 0}, {1, 1, 0}, {-1, 1, 0},
-          {1, -1, 0}, {-1, -1, 0}, {0, 1, 1}, {0, -1, 1}, {0, 1, -1}, {0, -1, -1}};
+      // Check all faces around primaryLog
+      BlockFace[] faces = {
+          BlockFace.UP,
+          BlockFace.DOWN,
+          BlockFace.NORTH,
+          BlockFace.EAST,
+          BlockFace.SOUTH,
+          BlockFace.WEST,
+          BlockFace.NORTH_EAST,
+          BlockFace.NORTH_WEST,
+          BlockFace.SOUTH_EAST,
+          BlockFace.SOUTH_WEST};
 
-      // Explore in each direction
-      for (int[] direction : directions) {
-        int xOffset = direction[0];
-        int yOffset = direction[1];
-        int zOffset = direction[2];
-
-        Block block = primaryLog.getRelative(xOffset, yOffset, zOffset);
+      for (BlockFace face : faces) {
+        Block block = primaryLog.getRelative(face);
         if (block.getLocation().distanceSquared(location)
             <= type.getSearchRadius() * type.getSearchRadius()) {
-          getConnectedLogs(block, foundLogs);
+          findConnectedLogs(block, foundLogs);
         }
       }
     }
 
     return foundLogs;
   }
-
-//  /**
-//   * Recursive method to get all connected logs to a log
-//   *
-//   * @param direction: 1 = up, -1 = down, 2 = left, -2 = right, 0 = none
-//   */
-//  private ArrayList<Block> getConnectedLogs(Block primaryLog, ArrayList<Block> foundLogs,
-//      int direction) {
-//    if (foundLogs == null) {
-//      foundLogs = new ArrayList<>();
-//      foundLogs.add(primaryLog);
-//      getConnectedLogs(primaryLog, foundLogs, 1);
-//      getConnectedLogs(primaryLog, foundLogs, -1);
-//      getConnectedLogs(primaryLog, foundLogs, 2);
-//      getConnectedLogs(primaryLog, foundLogs, -2);
-//    } else if (direction == 1) {
-//      Block block = primaryLog.getRelative(0, 1, 0);
-//      if (type.isWoodenLog(block.getType())
-//          && block.getLocation().distance(location) <= type.getSearchRadius()) {
-//        foundLogs.add(block);
-//        getConnectedLogs(block, foundLogs, 1);
-//      }
-//    } else if (direction == -1) {
-//      Block block = primaryLog.getRelative(0, -1, 0);
-//      if (type.isWoodenLog(block.getType())
-//          && block.getLocation().distance(location) <= type.getSearchRadius()) {
-//        foundLogs.add(block);
-//        getConnectedLogs(block, foundLogs, -1);
-//      }
-//    } else if (direction == 2) {
-//      Block block = primaryLog.getRelative(1, 0, 0);
-//      if (type.isWoodenLog(block.getType())
-//          && block.getLocation().distance(location) <= type.getSearchRadius()) {
-//        foundLogs.add(block);
-//        getConnectedLogs(block, foundLogs, 2);
-//      }
-//    } else if (direction == -2) {
-//      Block block = primaryLog.getRelative(-1, 0, 0);
-//      if (type.isWoodenLog(block.getType())
-//          && block.getLocation().distance(location) <= type.getSearchRadius()) {
-//        foundLogs.add(block);
-//        getConnectedLogs(block, foundLogs, -2);
-//      }
-//
-//    }
-//    return foundLogs;
-//  }
 
   private boolean checkCounter() {
     if (tickCounter == -1) {
@@ -368,15 +396,11 @@ public class MachineInstance {
   private boolean checkDestructiveNearby() {
     Material[] destructiveBlocks = {Material.FERN, Material.RED_MUSHROOM,
         Material.RED_MUSHROOM_BLOCK, Material.BROWN_MUSHROOM, Material.BROWN_MUSHROOM_BLOCK,
-        Material.POPPY, Material.DANDELION, Material.DEAD_BUSH, Material.GRASS, Material.TALL_GRASS,
+        Material.POPPY, Material.DANDELION, Material.DEAD_BUSH,
         Material.LARGE_FERN, Material.SUNFLOWER, Material.LILAC, Material.ROSE_BUSH, Material.PEONY,
         Material.TALL_GRASS, Material.LARGE_FERN, Material.VINE, Material.SWEET_BERRY_BUSH,
         Material.WHEAT, Material.CARROTS, Material.POTATOES, Material.BEETROOTS,
-        Material.MELON_STEM, Material.PUMPKIN_STEM, Material.COCOA, Material.NETHER_WART,
-        Material.BAMBOO, Material.SUGAR_CANE, Material.CACTUS, Material.CHORUS_PLANT,
-        Material.CHORUS_FLOWER, Material.KELP_PLANT, Material.KELP, Material.SEAGRASS,
-        Material.TALL_SEAGRASS, Material.TWISTING_VINES_PLANT, Material.WEEPING_VINES_PLANT,
-        Material.GLOW_LICHEN, Material.AZALEA, Material.FLOWERING_AZALEA};
+        Material.CHORUS_FLOWER};
 
     //faces
     BlockFace[] directions = {BlockFace.UP, BlockFace.DOWN, BlockFace.NORTH, BlockFace.EAST,

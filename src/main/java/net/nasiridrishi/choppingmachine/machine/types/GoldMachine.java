@@ -14,7 +14,7 @@ public class GoldMachine extends BaseMachine {
   }
 
   @Override
-  protected Material getMachineBlockMaterial() {
+  public Material getMachineBlockMaterial() {
     return Material.GOLD_BLOCK;
   }
 

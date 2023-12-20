@@ -14,7 +14,7 @@ public class DiamondMachine extends BaseMachine {
   }
 
   @Override
-  protected Material getMachineBlockMaterial() {
+  public Material getMachineBlockMaterial() {
     return Material.DIAMOND_BLOCK;
   }
 

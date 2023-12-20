@@ -39,6 +39,9 @@ import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.ItemSpawnEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.inventory.ItemStack;
+import org.patheloper.api.pathing.Pathfinder;
+import org.patheloper.api.pathing.rules.PathingRuleSet;
+import org.patheloper.mapping.PatheticMapper;
 
 public class MachineManager implements Listener {
 
@@ -49,10 +52,14 @@ public class MachineManager implements Listener {
 
   private final List<BaseMachine> machineTypes = new ArrayList<>();
 
+  @Getter
   private final MachineStorage machineStorage;
 
   @Getter
   private final MachineConfigs machineSettings;
+
+  @Getter
+  private final Pathfinder pathfinder;
 
   /**
    * List of all placed machines<br> Key: Location of machine as string<br> Value:
@@ -82,6 +89,12 @@ public class MachineManager implements Listener {
     //register manager as listener
     this.plugin.getServer().getPluginManager().registerEvents(this, this.plugin);
 
+    this.pathfinder = PatheticMapper.newPathfinder(PathingRuleSet.createAsyncRuleSet()
+        .withAllowingFailFast(true)
+        .withAllowingFallback(true)
+        .withLoadingChunks(true)
+        .withAllowingFailFast(true));
+
     registerCommand();
 
     //start ticking
@@ -91,31 +104,6 @@ public class MachineManager implements Listener {
 
   }
 
-  /**
-   * Although we are loading and unloading machines on chunk load/unload but there might be chunks
-   * already loaded with machine data located inside it before plugin was enabled
-   */
-//  private void initialLoad() {
-//    List<MachineInstance> deleteInstanceList = new ArrayList<>();
-//    machineStorage.getMachines().values().forEach(machineData -> {
-//      MachineInstance machineInstance = machineData.instantiate();
-//      if (machineInstance.getLocation().getChunk().isLoaded()) {
-////        if (machineInstance.verify()) {
-////          machineInstances.add(machineInstance);
-////        } else {
-////          plugin.getLogger().warning(
-////              "Found a invalid stored machine which is not valid anymore due to machines block type is not same as available block at location. Deleting it...");
-////          deleteInstanceList.add(machineInstance);
-////        }
-//      }
-//    });
-////    if (!deleteInstanceList.isEmpty()) {
-////      deleteInstanceList.forEach(machineInstance -> {
-////        machineStorage.destroy(machineInstance, false);
-////      });
-////      machineStorage.sync();
-////    }
-//  }
   private void initialLoad() {
     List<MachineInstance> deleteInstanceList = new ArrayList<>();
     List<MachineData> machineDataList = new ArrayList<>(machineStorage.getMachines().values());
@@ -141,10 +129,8 @@ public class MachineManager implements Listener {
     });
 
     if (!deleteInstanceList.isEmpty()) {
-      deleteInstanceList.forEach(machineInstance -> {
-        machineStorage.destroy(machineInstance, false);
-      });
-      machineStorage.sync();
+      deleteInstanceList.forEach(machineStorage::destroy);
+      machineStorage.setDirty(true);
     }
 
     if (!machineInstances.isEmpty()) {
@@ -283,8 +269,10 @@ public class MachineManager implements Listener {
             }
           });
 
-          MachineInstance machineInstance = machineType.onPlaced(itemStack, player,
-              event.getBlock().getLocation());
+          //instantiate machine
+          MachineInstance machineInstance = new MachineInstance(machineType,
+              event.getBlock().getLocation(), player.getUniqueId());
+
           registerInstance(machineInstance);
           machineStorage.add(machineInstance);
           player.sendMessage(ChatColor.GREEN + "You have successfully placed a "
@@ -389,6 +377,7 @@ public class MachineManager implements Listener {
       machineInstances.remove(instance.getUid());
     }
   }
+
 
 }
 

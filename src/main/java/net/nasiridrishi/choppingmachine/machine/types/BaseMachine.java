@@ -21,7 +21,7 @@ abstract public class BaseMachine {
 
   public abstract String getMachineIdentifier();
 
-  protected abstract Material getMachineBlockMaterial();
+  public abstract Material getMachineBlockMaterial();
 
   //determines the speed of chopping machine
   public abstract int getTickInterval();
@@ -40,16 +40,6 @@ abstract public class BaseMachine {
     //NOOP
   }
 
-
-  /**
-   * Returns a machine instance if the item is a machine item
-   */
-  public MachineInstance onPlaced(ItemStack itemStack, Player by, Location at) {
-    if (!isMachineItem(itemStack)) {
-      return null;
-    }
-    return new MachineInstance(this, at, by.getUniqueId());
-  }
 
   /**
    * Returns a machine item with the machine identifier set

@@ -8,6 +8,7 @@ import dev.jorel.commandapi.CommandAPICommand;
 import lombok.Getter;
 import net.nasiridrishi.choppingmachine.machine.MachineManager;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.patheloper.mapping.PatheticMapper;
 
 public final class ChoppingMachine extends JavaPlugin {
 
@@ -43,10 +44,12 @@ public final class ChoppingMachine extends JavaPlugin {
   @Override
   public void onEnable() {
     CommandAPI.onEnable();
+    PatheticMapper.initialize(this);
     machineManager = new MachineManager(this);
     particleApi = ParticleNativeCore.loadAPI(this);
 
     getMainCommand().register();
+
   }
 
   public CommandAPICommand getMainCommand() {
@@ -60,5 +63,6 @@ public final class ChoppingMachine extends JavaPlugin {
   @Override
   public void onDisable() {
     CommandAPI.onDisable();
+    machineManager.getMachineStorage().onDisable();
   }
 }

@@ -68,6 +68,10 @@ public class MachineHologram {
     //status
     DHAPI.setHologramLine(hologram, 3, "&bStatus: &a" + machine.getStatus());
 
+    //update location
+    hologram.setLocation(machine.getBlockLc().add(0.5, 2, 0.5));
+
+    hologram.realignLines();
   }
 
 

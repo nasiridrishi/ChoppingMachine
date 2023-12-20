@@ -156,5 +156,10 @@
       <version>2.8.5</version>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>com.github.patheloper.pathetic</groupId>
+      <artifactId>pathetic-mapping</artifactId>
+      <version>2.2.2</version>
+    </dependency>
   </dependencies>
 </project>

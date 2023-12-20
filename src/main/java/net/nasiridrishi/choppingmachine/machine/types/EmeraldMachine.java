@@ -21,7 +21,7 @@ public class EmeraldMachine extends BaseMachine {
   }
 
   @Override
-  protected Material getMachineBlockMaterial() {
+  public Material getMachineBlockMaterial() {
     return Material.EMERALD_BLOCK;
   }
 

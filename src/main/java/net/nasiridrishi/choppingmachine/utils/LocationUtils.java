@@ -46,4 +46,11 @@ public class LocationUtils {
         && location1.getBlockY() == location2.getBlockY()
         && location1.getBlockZ() == location2.getBlockZ();
   }
+
+  public static boolean equals(Location location1, Location location2) {
+    return Objects.equals(location1.getWorld(), location2.getWorld())
+        && location1.getBlockX() == location2.getBlockX()
+        && location1.getBlockY() == location2.getBlockY()
+        && location1.getBlockZ() == location2.getBlockZ();
+  }
 }

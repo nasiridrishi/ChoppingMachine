@@ -14,7 +14,7 @@ public class MachineData {
 
   private final String type;
   private final UUID owner;
-  private final String location;
+  private String location;
 
   public MachineData(@NonNull String type, @NonNull UUID $owner, @NonNull String location) {
     this.type = type;
@@ -32,6 +32,10 @@ public class MachineData {
     } catch (Exception e) {
       return null;
     }
+  }
+
+  public void setLocation(Location location) {
+    this.location = LocationUtils.toString(location);
   }
 
   public static MachineData fromMachineInstance(MachineInstance machineInstance) {
