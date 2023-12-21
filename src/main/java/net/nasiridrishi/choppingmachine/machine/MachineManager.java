@@ -10,6 +10,7 @@ import dev.jorel.commandapi.arguments.PlayerArgument;
 import dev.jorel.commandapi.arguments.StringArgument;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -28,6 +29,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.Chest;
 import org.bukkit.entity.Player;
@@ -93,20 +95,25 @@ public class MachineManager implements Listener {
         .withAllowingFailFast(true)
         .withAllowingFallback(true)
         .withLoadingChunks(true)
-        .withAllowingFailFast(true));
+        .withMaxLength(200)
+        .withMaxIterations(50000));
 
     registerCommand();
 
     //start ticking
     this.plugin.getServer().getScheduler().scheduleSyncRepeatingTask(this.plugin, () -> {
-      machineInstances.forEach((location, machineInstance) -> machineInstance.onTick());
+      //iterator
+      Iterator<MachineInstance> iterator = machineInstances.values().iterator();
+      while (iterator.hasNext()) {
+        iterator.next().onTick();
+      }
     }, 20L, 1L);
 
   }
 
   private void initialLoad() {
     List<MachineInstance> deleteInstanceList = new ArrayList<>();
-    List<MachineData> machineDataList = new ArrayList<>(machineStorage.getMachines().values());
+    List<MachineData> machineDataList = new ArrayList<>(machineStorage.getMachinesData().values());
 
     machineDataList.forEach(machineData -> {
       Location mcLc = machineData.getLocationObj();
@@ -116,7 +123,7 @@ public class MachineManager implements Listener {
       if (Objects.requireNonNull(mcLc.getWorld())
           .isChunkLoaded(mcLc.getBlockX() >> 4, mcLc.getBlockZ() >> 4)) {
         MachineInstance machineInstance = machineData.instantiate();
-        if (!machineInstance.verify()) {
+        if (!machineInstance.verify(false)) {
           plugin.getLogger().warning(
               "Found an invalid stored machine which is not valid anymore due to machine's block type not matching the available block at the location. Deleting it...");
           deleteInstanceList.add(machineInstance);
@@ -195,8 +202,11 @@ public class MachineManager implements Listener {
   }
 
   public void destroyMachine(MachineInstance machineInstance) {
+    //despawn holograms etc
     machineInstance.destroy();
+    //remove from instances
     machineInstances.remove(machineInstance.getUid());
+    //delete machine data
     machineStorage.destroy(machineInstance);
   }
 
@@ -256,18 +266,16 @@ public class MachineManager implements Listener {
         if (player.hasPermission(Permissions.MACHINE_PLACE)) {
           //check if there is a machine instance in the same chunk
           //if found, prevent another machine from being placed
-          machineInstances.forEach((location, machineInstance) -> {
-            Location mcLc = machineInstance.getLocation();
-            Location blLc = event.getBlock().getLocation();
-            if (mcLc.getWorld() == blLc.getWorld()
-                && mcLc.getBlockX() >> 4 == blLc.getBlockX() >> 4
-                && mcLc.getBlockZ() >> 4 == blLc.getBlockZ() >> 4) {
-              event.setCancelled(true);
-              player.sendMessage(ChatColor.RED
-                  + "There is already a machine in this chunk. Please try moving to another location");
-              return;
-            }
-          });
+
+          Location blLc = event.getBlock().getLocation();
+
+          if (getChunkMachine(blLc.getBlockX() >> 4, blLc.getBlockZ() >> 4, blLc.getWorld())
+              != null) {
+            event.setCancelled(true);
+            player.sendMessage(ChatColor.RED
+                + "There is already a machine in this chunk. Please try moving to another location");
+            return;
+          }
 
           //instantiate machine
           MachineInstance machineInstance = new MachineInstance(machineType,
@@ -308,10 +316,28 @@ public class MachineManager implements Listener {
     }
   }
 
+  private MachineData getChunkMachine(int x, int y, World world) {
+    //check for machines in the same chunk
+    for (MachineData machineData : machineStorage.getMachinesData().values()) {
+      Location mcLc;
+      try {
+        mcLc = LocationUtils.fromString(machineData.getLocation());
+      } catch (IllegalArgumentException e) {
+        continue;
+      }
+      if (x == mcLc.getBlockX() >> 4
+          && y == mcLc.getBlockZ() >> 4
+          && mcLc.getWorld() == world) {
+        return machineData;
+      }
+    }
+    return null;
+  }
+
   @EventHandler(priority = EventPriority.HIGHEST)
   public void onChunkLoad(ChunkLoadEvent event) {
     Chunk loadedChunk = event.getChunk();
-    for (MachineData machineData : machineStorage.getMachines().values()) {
+    for (MachineData machineData : machineStorage.getMachinesData().values()) {
       if (isInstantiated(machineData)) {
         continue;
       }
@@ -331,7 +357,7 @@ public class MachineManager implements Listener {
         } catch (IllegalArgumentException e) {
           continue;
         }
-        if (!newMachineInstance.verify()) {
+        if (!newMachineInstance.verify(false)) {
           plugin.getLogger().warning(
               "Found a invalid stored machine which is not valid anymore due to machines block type is not same as available block at location. Deleting it...");
           //delete from storage
@@ -379,5 +405,15 @@ public class MachineManager implements Listener {
   }
 
 
+  public void updateMachineLocation(MachineInstance instance, Location newPos) {
+    if (!machineInstances.containsKey(instance.getUid())) {
+      throw new IllegalStateException("Machine instance not registered");
+    }
+    Location currentPos = instance.getLocation().clone();
+    machineInstances.remove(instance.getUid());
+    instance.setLocation(newPos);
+    machineInstances.put(instance.getUid(), instance);
+    machineStorage.updateLocation(currentPos, newPos);
+  }
 }
 

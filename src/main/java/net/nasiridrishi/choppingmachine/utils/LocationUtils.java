@@ -1,10 +1,14 @@
 package net.nasiridrishi.choppingmachine.utils;
 
+import java.util.List;
 import java.util.Objects;
 import net.nasiridrishi.choppingmachine.machine.MachineInstance;
 import net.nasiridrishi.choppingmachine.storage.MachineData;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 
 public class LocationUtils {
 
@@ -52,5 +56,68 @@ public class LocationUtils {
         && location1.getBlockX() == location2.getBlockX()
         && location1.getBlockY() == location2.getBlockY()
         && location1.getBlockZ() == location2.getBlockZ();
+  }
+
+  public static double xzDistance(double x1, double y1, double x2, double y2) {
+    return Math.sqrt(Math.pow((x2 - x1), 2) + Math.pow((y2 - y1), 2));
+  }
+
+  public static Block findBlockAround(Location block, Material type, int radius) {
+    return findBlockAround(block.getBlock(), type, radius);
+  }
+
+  public static Block findBlockAround(Block block, Material type, int radius) {
+    for (int i = 0; i < radius; i++) {
+      for (int j = 0; j < radius; j++) {
+        for (int k = 0; k < radius; k++) {
+          Block b = block.getRelative(i, j, k);
+          if (b.getType() == type) {
+            return b;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  public static Block findBlockAround(Location block, Material type, List<BlockFace> faces,
+      int radius) {
+    for (int i = 0; i < radius; i++) {
+      for (int j = 0; j < radius; j++) {
+        for (int k = 0; k < radius; k++) {
+          Block b = block.getBlock().getRelative(i, j, k);
+          if (b.getType() == type) {
+            return b;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  public static Block findBlockAround(Block block, Material type, List<BlockFace> faces) {
+    for (BlockFace face : faces) {
+      Block b = block.getRelative(face);
+      if (b.getType() == type) {
+        return b;
+      }
+    }
+    return null;
+  }
+
+  public static Block findBlockAround(Block block, Material type) {
+    List<BlockFace> faces = List.of(BlockFace.UP, BlockFace.DOWN, BlockFace.NORTH, BlockFace.SOUTH,
+        BlockFace.EAST, BlockFace.WEST);
+    return findBlockAround(block, type, faces);
+  }
+
+  public static Block findBlockAround(Block block, Material... type) {
+    for (Material material : type) {
+      Block b = findBlockAround(block, material);
+      if (b != null) {
+        return b;
+      }
+    }
+    return null;
   }
 }

@@ -21,7 +21,7 @@ public class MachineStorage {
 
   private final ChoppingMachine plugin;
   @Getter
-  private Map<String, MachineData> machines;
+  private Map<String, MachineData> machinesData = new HashMap<>();
 
   @Setter
   private boolean isDirty = false;
@@ -43,15 +43,13 @@ public class MachineStorage {
    * Performs an async save of the machines data
    */
   private void saveAsync() {
-    plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
-      saveSync();
-    });
+    plugin.getServer().getScheduler().runTaskAsynchronously(plugin, this::saveSync);
   }
 
   private void saveSync() {
     JSONArray jsonArray = new JSONArray();
-    if (!machines.isEmpty()) {
-      for (MachineData machineData : machines.values()) {
+    if (!machinesData.isEmpty()) {
+      for (MachineData machineData : machinesData.values()) {
         jsonArray.put(machineData.toJson());
       }
     } else {
@@ -70,30 +68,13 @@ public class MachineStorage {
   }
 
   public MachineData getMachineData(Location location) {
-    return machines.get(LocationUtils.toString(location));
+    return machinesData.get(LocationUtils.toString(location));
   }
 
-  public void updateMachineLocation(Location old, Location newLocation) {
-    if (LocationUtils.equals(old, newLocation)) {
-      return;
-    }
-    MachineData machineData = machines.get(LocationUtils.toString(old));
-    if (machineData == null) {
-      throw new RuntimeException("No machine found at old location");
-    }
-    if (machines.containsKey(LocationUtils.toString(newLocation))) {
-      throw new RuntimeException("A machine already exists at new location");
-    }
-    machineData.setLocation(newLocation);
-    machines.remove(LocationUtils.toString(old));
-    machines.put(LocationUtils.toString(newLocation), machineData);
-    setDirty(true);
-  }
 
   //Not doing async because its only called once on startup
   private void loadFromFile() {
     if (!machineDataFile.exists()) {
-      machines = new HashMap<>();
       plugin.getLogger().info("No machines data file found");
       return;
     }
@@ -103,11 +84,11 @@ public class MachineStorage {
       while ((line = bufferedReader.readLine()) != null) {
         stringBuilder.append(line);
       }
-      machines = fromJsonArray(stringBuilder.toString());
+      machinesData = fromJsonArray(stringBuilder.toString());
     } catch (IOException e) {
       plugin.getLogger().warning("Error reading machines data file");
       e.printStackTrace();
-      machines = new HashMap<>();
+      ;
     }
   }
 
@@ -138,25 +119,36 @@ public class MachineStorage {
   }
 
   public void destroy(MachineInstance machineInstance) {
-    this.machines.remove(LocationUtils.toString(machineInstance.getLocation()));
+    this.machinesData.remove(LocationUtils.toString(machineInstance.getLocation()));
     setDirty(true);
   }
 
   public void add(MachineInstance machineInstance) {
-    if (machines.containsKey(LocationUtils.toString(machineInstance.getLocation()))) {
+    if (machinesData.containsKey(LocationUtils.toString(machineInstance.getLocation()))) {
       throw new RuntimeException("A machine already exists at this location");
     }
-    machines.put(LocationUtils.toString(machineInstance.getLocation()),
+    machinesData.put(LocationUtils.toString(machineInstance.getLocation()),
         MachineData.fromMachineInstance(machineInstance));
     setDirty(true);
   }
 
 
-  public void add(MachineData machineData) {
-    if (machines.containsKey(machineData.getLocation())) {
-      throw new RuntimeException("A machine already exists at this location");
+  public void updateLocation(Location currentPos, Location newPos) {
+    if (LocationUtils.equals(currentPos, newPos)) {
+      ChoppingMachine.getInstance().getLogger()
+          .warning("Tried to update machine location to same location");
+      return;
     }
-    machines.put(machineData.getLocation(), machineData);
+    MachineData machineData = machinesData.get(LocationUtils.toString(currentPos));
+    if (machineData == null) {
+      throw new RuntimeException("No machine found at old location");
+    }
+    if (machinesData.containsKey(LocationUtils.toString(newPos))) {
+      throw new RuntimeException("A machine already exists at new location");
+    }
+    machineData.setLocation(newPos);
+    machinesData.remove(LocationUtils.toString(currentPos));
+    machinesData.put(LocationUtils.toString(newPos), machineData);
     setDirty(true);
   }
 }

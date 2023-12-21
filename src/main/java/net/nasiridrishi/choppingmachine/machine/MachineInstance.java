@@ -14,6 +14,7 @@ import lombok.NonNull;
 import lombok.Setter;
 import net.nasiridrishi.choppingmachine.ChoppingMachine;
 import net.nasiridrishi.choppingmachine.machine.types.BaseMachine;
+import net.nasiridrishi.choppingmachine.utils.LocationUtils;
 import net.nasiridrishi.choppingmachine.utils.MachineHologram;
 import net.nasiridrishi.choppingmachine.utils.Utils;
 import org.bukkit.Bukkit;
@@ -23,8 +24,8 @@ import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.Chest;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.patheloper.api.pathing.result.PathState;
 
 /**
  * A machine instance is a machine that has been placed in the world.
@@ -34,6 +35,7 @@ public class MachineInstance {
 
   @Getter
   private final BaseMachine type;
+  @Setter
   @Getter
   private Location location;
   @Getter
@@ -47,6 +49,9 @@ public class MachineInstance {
   private final List<ItemStack> choppedLogs = new ArrayList<>();
   @Getter
   private Chest chest;
+
+  private boolean chestFull = false;
+
   private int tickCounter = -1;
   private boolean searchingTree = false;
   private MachineHologram hologram;
@@ -55,9 +60,7 @@ public class MachineInstance {
   @Getter
   private Material lastChoppedLog;
 
-  private Block nextTreePos;
-
-  private MachinePath pathToTree;
+  private MachinePath foundTree;
 
   public MachineInstance(@NonNull BaseMachine type, @NonNull Location location,
       @NonNull UUID owner) {
@@ -111,11 +114,29 @@ public class MachineInstance {
       choppedLogs.clear();
       choppedLogs.addAll(left.values());
       this.status = "§cChest full";
+      notifyOwner("§cChest full at " + location.getBlockX() + ", " + location.getBlockY() + ", "
+              + location.getBlockZ() + "in world " + location.getWorld().getName(),
+          Sound.BLOCK_NOTE_BLOCK_BELL);
+      chestFull = true;
       return false;
     } else {
       choppedLogs.clear();
       return true;
     }
+  }
+
+  private boolean checkChest() {
+    if (chest == null) {
+      return false;
+    }
+    if (chestFull) {
+      if (chest.getInventory().firstEmpty() != -1) {
+        chestFull = false;
+        return true;
+      }
+      return false;
+    }
+    return true;
   }
 
   private boolean isInLoadedChunk() {
@@ -137,34 +158,30 @@ public class MachineInstance {
       lastChoppedLog = null;
       return;
     }
-    if (!checkCounter() || !verify()) {
+    if (!checkCounter() || !verify(true)) {
       lastChoppedLog = null;
       return;
     }
 
-    if (chest == null || !addLogToChest()) {
+    if (!checkChest()) {
       updateHologram();
+      return;
+    }
+
+    if (!addLogToChest()) {
+      return;
+    }
+
+    //check for boosters or destructive blocks around machine
+    if (checkDestructiveNearby()) {
       return;
     }
 
     //chop if foundLogs is not empty
     if (!foundLogs.isEmpty()) {
-      if (checkBoosters()) {
-        return;
-      }
       this.status = "§aChopping logs..";
-      AtomicReference<Block> choppedBlock = new AtomicReference<>();
-      foundLogs.stream().findFirst().ifPresent(block -> {
-        if (isInLoadedChunk(block.getX() >> 4, block.getZ() >> 4)) {
-          type.attemptChop(this, block);
-        }
-        choppedBlock.set(block);
-        this.lastChoppedLog = block.getType();
-      });
-      if (choppedBlock.get() != null) {
-        foundLogs.remove(choppedBlock.get());
-      }
-    } else if (nextTreePos == null) {
+      chopLogs();
+    } else if (foundTree == null) {
       if (!searchingTree) {
         this.status = "§eSearching for Tree..";
         lastChoppedLog = null;
@@ -184,6 +201,23 @@ public class MachineInstance {
       hologram.updateHologramLines();
     } else if (ChoppingMachine.getInstance().isHologramsEnabled()) {
       hologram = new MachineHologram(this);
+    }
+  }
+
+  private void chopLogs() {
+    if (checkBoosters()) {
+      return;
+    }
+    AtomicReference<Block> choppedBlock = new AtomicReference<>();
+    foundLogs.stream().findFirst().ifPresent(block -> {
+      if (isInLoadedChunk(block.getX() >> 4, block.getZ() >> 4)) {
+        type.attemptChop(this, block);
+      }
+      choppedBlock.set(block);
+      this.lastChoppedLog = block.getType();
+    });
+    if (choppedBlock.get() != null) {
+      foundLogs.remove(choppedBlock.get());
     }
   }
 
@@ -207,9 +241,10 @@ public class MachineInstance {
                 if (!isInLoadedChunk(block.getX() >> 4, block.getZ() >> 4)) {
                   continue;
                 }
-                if (type.isWoodenLog(block.getType())) {
-                  //foundLogs.addAll(getConnectedLogs(block, null));
-                  nextTreePos = block;
+                //check if block is a log block and is above dirt block
+                if (type.isWoodenLog(block.getType())
+                    && block.getRelative(BlockFace.DOWN).getType() == Material.DIRT) {
+                  setDestinationTree(block.getLocation());
                   searchingTree = false;
                   return;
                 }
@@ -222,79 +257,65 @@ public class MachineInstance {
     });
   }
 
+  private void setDestinationTree(Location location) {
+    this.foundTree = new MachinePath(MachineManager.getInstance().getPathfinder(),
+        this.getLocation(),
+        location, 10);
+  }
+
   private Logger logger() {
     return ChoppingMachine.getInstance().getLogger();
   }
 
   private void handleMoveToTree() {
-    if (nextTreePos.getLocation().distanceSquared(location) <= 2) {
-      logger().info("Reached at tree pos");
-      this.foundLogs.addAll(findConnectedLogs(nextTreePos, null));
-      nextTreePos = null;
-      pathToTree = null;
+    Location origin = foundTree.getOrigin().clone();
+
+    if (LocationUtils.xzDistance(origin.getX(), origin.getZ(), foundTree.getTargetLog().getX(),
+        foundTree.getTargetLog().getZ()) <= 2) {
+      this.foundLogs.addAll(findConnectedLogs(foundTree.getTargetLog()));
+      foundTree = null;
       return;
     }
-    if (checkBoosters() || checkDestructiveNearby()) {
-      logger().info("Found booster or destructive block");
+    if (!foundTree.shouldTryAgain()) {
+      foundTree = null;
       return;
     }
-    if (pathToTree == null) {
-      logger().info("Path to tree is null, creating new path");
-      pathToTree = new MachinePath(MachineManager.getInstance().getPathfinder(), this.getLocation(),
-          nextTreePos.getLocation());
-    }
-    if (pathToTree.getPathStatus() == null) {
-      logger().info("Path to tree status is null");
-      return;
-    }
-    if (pathToTree.getPathStatus() == PathState.FAILED) {
-      logger().info("Path to tree failed");
-      nextTreePos = null;
-      pathToTree = null;
-      return;
-    }
-    if (pathToTree.getPathStatus() == PathState.FALLBACK) {
-      logger().info("Path to tree fellback");
-      return;
-    }
-    if (pathToTree.getPathStatus() == PathState.LENGTH_LIMITED) {
-      logger().info("Path to tree length limited");
-      return;
-    }
-    if (pathToTree.getPathStatus() == PathState.MAX_ITERATIONS_REACHED) {
-      logger().info("Path to tree max iterations reached");
-      return;
-    }
-    Location nextPos = pathToTree.getNextPos();
+    Location nextPos = foundTree.getNextPos();
     if (nextPos == null) {
-      logger().info("Next pos is null");
-      nextTreePos = null;
-      pathToTree = null;
+      foundTree = null;
       return;
     }
-    Location newPos = nextPos.clone();
-    logger().info("Moving to next pos");
+    updatePos(nextPos);
+  }
+
+  private void updatePos(Location newPos) {
     //move blocks
     location.getBlock().setType(Material.AIR);
-    nextPos.getBlock().setType(type.getMachineBlockMaterial());
+    newPos.getBlock().setType(type.getMachineBlockMaterial());
     //move chest if chest is placed
     if (chest != null) {
-      logger().info("Moving chest");
-      //move chest
-      //set chest to new Position
-      nextPos.clone().add(0, 1, 0).getBlock().setType(Material.CHEST);
-      //get new chest state
-      Chest chest = (Chest) nextPos.clone().add(0, 1, 0).getBlock().getState();
-      //set chest inventory to old chest inventory
-      chest.getInventory().setContents(this.chest.getInventory().getContents());
-      //remove old chest
-      this.chest.getBlock().setType(Material.AIR);
-      //set new chest
-      this.chest = chest;
+      Location nextChestLoc = newPos.clone().add(0, 1, 0);
+      nextChestLoc.getBlock().setType(Material.CHEST);
+      Chest nextChest = (Chest) nextChestLoc.getBlock().getState();
+      if (!chest.getInventory().isEmpty()) {
+        for (ItemStack itemStack : chest.getInventory().getContents()) {
+          if (itemStack != null) {
+            nextChest.getInventory().addItem(itemStack.clone());
+          }
+        }
+      }
+      chest.getInventory().clear();
+      chest.getBlock().setType(Material.AIR);
+      this.chest = nextChest;
     }
-    MachineManager.getInstance().getMachineStorage().updateMachineLocation(location,
+
+    //update location through machine manager
+    MachineManager.getInstance().updateMachineLocation(this,
         newPos);
-    this.location = newPos;
+  }
+
+  private Set<Block> findConnectedLogs(Location primaryLog) {
+    return findConnectedLogs(primaryLog.getBlock(), null);
   }
 
 
@@ -343,8 +364,13 @@ public class MachineInstance {
     return tickCounter-- == 0;
   }
 
-  public boolean verify() {
-    return location.getBlock().getType() == type.getMachineItem().getType();
+  public boolean verify(boolean setBlock) {
+    boolean verified = location.getBlock().getType() == type.getMachineItem().getType();
+    if (!verified && setBlock) {
+      location.getBlock().setType(type.getMachineBlockMaterial());
+      return true;
+    }
+    return verified;
   }
 
   /**
@@ -396,11 +422,8 @@ public class MachineInstance {
   private boolean checkDestructiveNearby() {
     Material[] destructiveBlocks = {Material.FERN, Material.RED_MUSHROOM,
         Material.RED_MUSHROOM_BLOCK, Material.BROWN_MUSHROOM, Material.BROWN_MUSHROOM_BLOCK,
-        Material.POPPY, Material.DANDELION, Material.DEAD_BUSH,
-        Material.LARGE_FERN, Material.SUNFLOWER, Material.LILAC, Material.ROSE_BUSH, Material.PEONY,
-        Material.TALL_GRASS, Material.LARGE_FERN, Material.VINE, Material.SWEET_BERRY_BUSH,
-        Material.WHEAT, Material.CARROTS, Material.POTATOES, Material.BEETROOTS,
-        Material.CHORUS_FLOWER};
+        Material.POPPY, Material.DANDELION, Material.SUNFLOWER, Material.LILAC, Material.PEONY,
+        Material.LARGE_FERN, Material.CHORUS_FLOWER};
 
     //faces
     BlockFace[] directions = {BlockFace.UP, BlockFace.DOWN, BlockFace.NORTH, BlockFace.EAST,
@@ -426,6 +449,24 @@ public class MachineInstance {
                     .playSound(location, Sound.ENTITY_ITEM_BREAK, 1, 1);
                 //set air
                 location.getBlock().setType(Material.AIR);
+
+                //check if chest is placed
+                if (chest != null) {
+                  //drop chest items
+                  for (ItemStack itemStack : chest.getInventory().getContents()) {
+                    if (itemStack != null) {
+                      Objects.requireNonNull(location.getWorld())
+                          .dropItemNaturally(location, itemStack);
+                    }
+                  }
+                  //set chest to air
+                  chest.getBlock().setType(Material.AIR);
+                }
+                //notify owner
+                notifyOwner("§cMachine destroyed due to destructive block nearby at "
+                        + location.getBlockX() + ", " + location.getBlockY() + ", "
+                        + location.getBlockZ() + "in world " + location.getWorld().getName(),
+                    Sound.BLOCK_NOTE_BLOCK_BELL);
               });
           return true;
         }
@@ -433,4 +474,20 @@ public class MachineInstance {
     }
     return false;
   }
+
+  //get owner if online
+  private Player getOnlineOwner() {
+    return Bukkit.getPlayer(owner);
+  }
+
+  private void notifyOwner(String message, Sound sound) {
+    Player player = getOnlineOwner();
+    if (player != null) {
+      player.sendMessage(message);
+      if (sound != null) {
+        player.playSound(player.getLocation(), sound, 1, 1);
+      }
+    }
+  }
+
 }

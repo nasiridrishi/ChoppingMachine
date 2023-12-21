@@ -83,6 +83,7 @@ chopping machines:
 - ParticleNativeAPI for efficient particle
   handling: https://github.com/Fierioziy/ParticleNativeAPI
 - CommandApi for handling commands: https://github.com/JorelAli/CommandAPI
+- Pathetic for handling path finding: https://github.com/patheloper/pathetic
 
 ---
 

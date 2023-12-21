@@ -5,8 +5,11 @@ import java.util.List;
 import java.util.concurrent.CompletionStage;
 import lombok.Getter;
 import lombok.NonNull;
-import net.nasiridrishi.choppingmachine.ChoppingMachine;
+import net.nasiridrishi.choppingmachine.utils.LocationUtils;
 import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.patheloper.api.pathing.Pathfinder;
 import org.patheloper.api.pathing.result.PathState;
 import org.patheloper.api.pathing.result.PathfinderResult;
@@ -24,34 +27,78 @@ public class MachinePath {
 
   private final List<Location> path = new ArrayList<>();
 
-  public MachinePath(@NonNull Pathfinder pathfinder, @NonNull Location from,
-      @NonNull Location target) {
+  @Getter
+  private final Location origin;
 
-    ChoppingMachine.getInstance().getLogger().info(
-        "Finding path from " + from + " to " + target + " with distance " + from.distance(target));
+  @Getter
+  private final Location targetLog;
+
+  private int maxTries;
+
+  public MachinePath(@NonNull Pathfinder pathfinder, @NonNull Location from,
+      @NonNull Location treeLog, int maxTries) {
+
+    this.origin = from.clone();
+    this.targetLog = treeLog;
+    Block target = getAirBlock(treeLog);
+    if (target == null) {
+      this.pathStatus = PathState.FAILED;
+      return;
+    }
+    this.maxTries = maxTries;
+
     PathPosition start = BukkitMapper.toPathPosition(from);
-    PathPosition end = BukkitMapper.toPathPosition(target);
+    PathPosition end = BukkitMapper.toPathPosition(target.getLocation());
     CompletionStage<PathfinderResult> pathResult = pathfinder.findPath(start, end,
         new DirectPathfinderStrategy());
-    pathResult.thenAcceptAsync((result) -> {
+    pathResult.thenAccept((result) -> {
       pathStatus = result.getPathState();
       path.clear();
       if (result.successful() || result.hasFallenBack()) {
-        result.getPath().getPositions().forEach(pathPosition -> {
-          path.add(BukkitMapper.toLocation(pathPosition));
-        });
+        this.pathStatus = PathState.FOUND;
+        result.getPath().getPositions()
+            .forEach(pathPosition -> path.add(BukkitMapper.toLocation(pathPosition)));
       }
     });
   }
 
+  public boolean shouldTryAgain() {
+    if (maxTries == 0) {
+      return false;
+    }
+    maxTries--;
+    return true;
+  }
+
   public Location getNextPos() {
-    if (path.isEmpty()) {
+    if (this.pathStatus != PathState.FOUND || path.isEmpty()) {
       return null;
     }
     Location next = path.get(0);
     path.remove(0);
-    return next;
-
+    //Path returns origin as first position, so we need to skip it
+    if (LocationUtils.equals(next, origin)) {
+      return getNextPos();
+    }
+    return getHighestNonAirBlock(next, 20);
   }
+
+  private Location getHighestNonAirBlock(Location location, int maxDepth) {
+    Block blockBelow = location.getBlock().getRelative(BlockFace.DOWN);
+    if (blockBelow.getType() == Material.AIR) {
+      if (maxDepth == 0) {
+        return null;
+      }
+      maxDepth--;
+      return getHighestNonAirBlock(blockBelow.getLocation(), maxDepth);
+    }
+    return blockBelow.getLocation().add(0, 1, 0).clone();
+  }
+
+  private Block getAirBlock(Location at) {
+    return LocationUtils.findBlockAround(at, Material.AIR, 3);
+  }
+
+
 }
 

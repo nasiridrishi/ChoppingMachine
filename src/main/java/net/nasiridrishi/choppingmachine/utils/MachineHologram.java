@@ -30,8 +30,6 @@ public class MachineHologram {
     //check if chest is null
     if (chest == null) {
       DHAPI.addHologramLine(hologram, "&cChest not found");
-    } else if (chest.getInventory().firstEmpty() == -1) {
-      DHAPI.addHologramLine(hologram, "&6Chest Inventory: &cFull");
     } else {
       //check available slots/total slots
       DHAPI.addHologramLine(hologram,
