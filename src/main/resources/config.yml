@@ -1,13 +1,13 @@
 machines:
   Diamond:
-    tick_interval: 5
+    tick_interval: 1
     search_radius: 25
     yield_multiplier: 1
   Emerald:
-    tick_interval: 10
+    tick_interval: 4
     search_radius: 17
     yield_multiplier: 1
   Gold:
-    tick_interval: 20
+    tick_interval: 10
     search_radius: 9
     yield_multiplier: 2
