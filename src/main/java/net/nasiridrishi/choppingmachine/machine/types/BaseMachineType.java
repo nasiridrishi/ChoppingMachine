@@ -52,7 +52,7 @@ abstract public class BaseMachineType {
     ItemMeta itemMeta = itemStack.getItemMeta();
     //set colored name
     itemMeta.setDisplayName("§6" + getMachineIdentifier() + " Machine");
-    itemMeta.setLore(new ArrayList<String>() {{
+    itemMeta.setLore(new ArrayList<>() {{
       add("§7");
       add("§7Chops logs in a radius of " + getSearchRadius() + " blocks");
       add("§7Yields " + getYieldMultiplier() + "x logs");

@@ -42,6 +42,9 @@ public class Utils {
 
   public static List<Player> getNearbyPlayers(Location location, int radius) {
     List<Player> nearbyPlayers = new ArrayList<>();
+    if (location.getWorld() == null) {
+      return nearbyPlayers;
+    }
     for (Player player : location.getWorld().getPlayers()) {
       if (player.getLocation().distance(location) <= radius) {
         nearbyPlayers.add(player);

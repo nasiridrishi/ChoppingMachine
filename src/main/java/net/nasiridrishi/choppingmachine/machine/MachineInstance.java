@@ -8,7 +8,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Logger;
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
@@ -297,10 +296,6 @@ public class MachineInstance extends Location {
     this.foundTree = new MachinePath(MachineManager.getInstance().getPathfinder(),
         this,
         location, 10);
-  }
-
-  private Logger logger() {
-    return ChoppingMachine.getInstance().getLogger();
   }
 
   private void handleMoveToTree() {

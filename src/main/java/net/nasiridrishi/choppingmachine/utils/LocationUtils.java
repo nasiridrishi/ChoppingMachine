@@ -1,11 +1,9 @@
 package net.nasiridrishi.choppingmachine.utils;
 
-import java.util.List;
 import java.util.Objects;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
-import org.bukkit.block.BlockFace;
 
 public class LocationUtils {
 
@@ -49,14 +47,4 @@ public class LocationUtils {
     return null;
   }
 
-
-  public static Block findBlockAround(Block block, Material type, List<BlockFace> faces) {
-    for (BlockFace face : faces) {
-      Block b = block.getRelative(face);
-      if (b.getType() == type) {
-        return b;
-      }
-    }
-    return null;
-  }
 }

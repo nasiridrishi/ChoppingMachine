@@ -294,9 +294,7 @@ public class MachineManager implements Listener {
   public void onDisable() {
     plugin.getServer().getScheduler().cancelTask(tickTask);
     plugin.getServer().getScheduler().cancelTask(saveTask);
-    machineList.forEach((location, machineInstance) -> {
-      machineInstance.onDisable();
-    });
+    machineList.forEach((location, machineInstance) -> machineInstance.onDisable());
     machineList.save();
   }
 }

@@ -13,21 +13,12 @@ public enum MachineStatus {
   SEARCHING_TREE("§eSearching Tree"),
   CHOPPING_TREE("§6Chopping Tree"),
   MOVING_TO_TREE("§aMoving to Tree");
-  
+
 
   private final String status;
 
   MachineStatus(String status) {
     this.status = status;
-  }
-
-  public static MachineStatus fromString(String status) {
-    for (MachineStatus machineStatus : MachineStatus.values()) {
-      if (machineStatus.getStatus().equalsIgnoreCase(status)) {
-        return machineStatus;
-      }
-    }
-    return null;
   }
 
 }
