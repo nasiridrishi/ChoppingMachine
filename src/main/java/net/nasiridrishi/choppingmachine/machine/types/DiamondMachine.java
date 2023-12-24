@@ -6,7 +6,7 @@ import net.nasiridrishi.choppingmachine.machine.MachineConfigs;
 import net.nasiridrishi.choppingmachine.machine.MachineManager;
 import org.bukkit.Material;
 
-public class DiamondMachine extends BaseMachine {
+public class DiamondMachine extends BaseMachineType {
 
   @Override
   public String getMachineIdentifier() {

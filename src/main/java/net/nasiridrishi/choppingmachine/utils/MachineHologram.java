@@ -16,10 +16,10 @@ public class MachineHologram {
 
   public MachineHologram(MachineInstance machineInstance) {
     this.machine = machineInstance;
-    hologram = DHAPI.createHologram(machine.getUid(),
-        machineInstance.getBlockLc().add(0.5, 2, 0.5));
+    hologram = DHAPI.createHologram("machine_" + machine.getId(),
+        machineInstance.locObj().add(0.5, 3.5, 0.5));
 
-    DHAPI.addHologramLine(hologram, machine.getType().getMachineItem());
+    DHAPI.addHologramLine(hologram, machine.getType().getMachineBlockMaterial());
     //in colors
     //owner
     DHAPI.addHologramLine(hologram,
@@ -46,7 +46,7 @@ public class MachineHologram {
     if (machine.getLastChoppedLog() != null && machine.getLastChoppedLog() != Material.AIR) {
       DHAPI.setHologramLine(hologram, 0, new ItemStack(machine.getLastChoppedLog()));
     } else {
-      DHAPI.setHologramLine(hologram, 0, machine.getType().getMachineItem());
+      DHAPI.setHologramLine(hologram, 0, machine.getType().getMachineBlockMaterial());
     }
     //update lines
     //owner
@@ -67,7 +67,7 @@ public class MachineHologram {
     DHAPI.setHologramLine(hologram, 3, "&bStatus: &a" + machine.getStatus());
 
     //update location
-    hologram.setLocation(machine.getBlockLc().add(0.5, 2, 0.5));
+    hologram.setLocation(machine.locObj().add(0.5, 3.5, 0.5));
 
     hologram.realignLines();
   }

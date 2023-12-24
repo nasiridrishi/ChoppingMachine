@@ -63,6 +63,6 @@ public final class ChoppingMachine extends JavaPlugin {
   @Override
   public void onDisable() {
     CommandAPI.onDisable();
-    machineManager.getMachineStorage().onDisable();
+    machineManager.onDisable();
   }
 }

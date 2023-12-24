@@ -13,7 +13,7 @@ import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
-public class EmeraldMachine extends BaseMachine {
+public class EmeraldMachine extends BaseMachineType {
 
   @Override
   public String getMachineIdentifier() {
@@ -57,11 +57,11 @@ public class EmeraldMachine extends BaseMachine {
     }
 
     List<Vector> circleVectors = Utils.circularVect(
-        instance.getBlockLc().add(0.5, 0, 0.5).toVector(), 1.5);
+        instance.locObj().add(0.5, 0, 0.5).toVector(), 1.5);
 
     for (Vector vector : circleVectors) {
       ChoppingMachine.getInstance().getParticleApi().LIST_1_8.VILLAGER_HAPPY
-          .packet(true, vector.toLocation(instance.getBlockLc().getWorld()), 0, 0, 0, 0, 2)
+          .packet(true, vector.toLocation(instance.locObj().getWorld()), 0, 0, 0, 0, 2)
           .sendTo(nearbyPlayers);
     }
   }

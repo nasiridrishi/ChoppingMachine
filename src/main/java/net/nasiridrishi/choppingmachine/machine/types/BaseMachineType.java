@@ -17,7 +17,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.util.Vector;
 
-abstract public class BaseMachine {
+abstract public class BaseMachineType {
 
   public abstract String getMachineIdentifier();
 
@@ -33,7 +33,7 @@ abstract public class BaseMachine {
   public abstract ParticleType getLineParticle();
 
   /**
-   * Optional method to perform machine specific features
+   * Optional method to perform machine-specific features
    */
   protected void onPostChop(MachineInstance instance, Location choppedLog,
       List<Player> nearbyPlayers) {
@@ -90,7 +90,7 @@ abstract public class BaseMachine {
     blockToChop.getWorld().playSound(blockToChop.getLocation(),
         blockToChop.getType().createBlockData().getSoundGroup().getBreakSound(), 1, 1);
 
-    List<Player> nearbyPlayers = Utils.getNearbyPlayers(machineInstance.getLocation(),
+    List<Player> nearbyPlayers = Utils.getNearbyPlayers(machineInstance,
         getSearchRadius());
 
     //smoke at broken log location
@@ -108,7 +108,7 @@ abstract public class BaseMachine {
     }
 
     List<Vector> lineVectors = Utils.getLine(
-        machineInstance.getBlockLc().add(0.5, 0.5, 0.5).toVector(),
+        machineInstance.locObj().add(0.5, 0.5, 0.5).toVector(),
         blockToChop.getLocation().add(0.5, 0, 0.5).toVector(), 0.1);
 
     for (Player player : nearbyPlayers) {

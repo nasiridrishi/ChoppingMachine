@@ -2,9 +2,6 @@ package net.nasiridrishi.choppingmachine.utils;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
-import net.nasiridrishi.choppingmachine.machine.MachineInstance;
-import net.nasiridrishi.choppingmachine.storage.MachineData;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
@@ -51,21 +48,6 @@ public class Utils {
       }
     }
     return nearbyPlayers;
-  }
-
-  public static String formulateMachineUid(String machineId, Location location) {
-    return machineId + location.getBlockX() + location.getBlockY()
-        + location.getBlockZ()
-        + Objects.requireNonNull(location.getWorld()).getName();
-  }
-
-  public static String formulateMachineUid(MachineData machineData) {
-    return formulateMachineUid(machineData.getType(), machineData.getLocationObj());
-  }
-
-  public static String formulateMachineUid(MachineInstance machineInstance) {
-    return formulateMachineUid(machineInstance.getType().getMachineIdentifier(),
-        machineInstance.getLocation());
   }
 
   public static int randomInt(int i, int i1) {
