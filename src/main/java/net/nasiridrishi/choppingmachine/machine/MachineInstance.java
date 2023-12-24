@@ -410,50 +410,6 @@ public class MachineInstance extends Location {
     }
   }
 
-//  private Set<Block> getTreeLogs(Block primaryBlock, Set<Block> foundLogs, Set<Block> foundLeaves) {
-//    if (foundLogs == null) {
-//      foundLogs = new HashSet<>();
-//    }
-//    if (foundLeaves == null) {
-//      foundLeaves = new HashSet<>();
-//    }
-//
-//    if (!foundLogs.contains(primaryBlock) && !foundLeaves.contains(primaryBlock)) {
-//      boolean callRecursive = false;
-//      if (type.isWoodenLog(primaryBlock.getType())) {
-//        foundLogs.add(primaryBlock);
-//        callRecursive = true;
-//      } else if (isLeaf(primaryBlock.getType())) {
-//        foundLeaves.add(primaryBlock);
-//        callRecursive = true;
-//      }
-//      if (callRecursive) {
-//        // Check all faces around primaryLog
-//        BlockFace[] faces = {
-//            BlockFace.UP,
-//            BlockFace.DOWN,
-//            BlockFace.NORTH,
-//            BlockFace.EAST,
-//            BlockFace.SOUTH,
-//            BlockFace.WEST,
-//            BlockFace.NORTH_EAST,
-//            BlockFace.NORTH_WEST,
-//            BlockFace.SOUTH_EAST,
-//            BlockFace.SOUTH_WEST};
-//
-//        for (BlockFace face : faces) {
-//          Block block = primaryBlock.getRelative(face);
-//          if (block.getLocation().distanceSquared(this)
-//              <= type.getSearchRadius() * type.getSearchRadius()) {
-//            getTreeLogs(block, foundLogs, foundLeaves);
-//          }
-//        }
-//      }
-//    }
-//
-//    return foundLogs;
-//  }
-
   private boolean checkCounter() {
     if (tickCounter == -1) {
       tickCounter = type.getTickInterval();
