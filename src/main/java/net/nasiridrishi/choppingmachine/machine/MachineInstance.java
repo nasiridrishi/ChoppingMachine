@@ -334,7 +334,8 @@ public class MachineInstance extends Location {
     Location origin = foundTree.getOrigin().clone();
     if (LocationUtils.xzDistance(origin, foundTree.getTargetLog()) <= 3) {
       ArrayList<Block> treeLogs = new ArrayList<>();
-      getTreeLogs(foundTree.getTargetLog().getBlock(), treeLogs, null);
+      Block targetLog = foundTree.getTargetLog().getBlock();
+      getTreeLogs(targetLog, targetLog, treeLogs, null);
       this.currentTreeLogs.addAll(treeLogs);
       unsetPath();
       return;
@@ -382,26 +383,27 @@ public class MachineInstance extends Location {
    * <p>
    * exploring in all directions to find connected logs
    */
-  private void getTreeLogs(Block block, List<Block> treeLogs, List<Block> treeLeaves) {
+  private void getTreeLogs(Block primaryBlock, Block currentBlock, List<Block> treeLogs,
+      List<Block> treeLeaves) {
     if (treeLeaves == null) {
       treeLeaves = new ArrayList<>();
     }
-    if (!treeLogs.contains(block) && !treeLeaves.contains(block)) {
+    if (!treeLogs.contains(currentBlock) && !treeLeaves.contains(currentBlock)) {
       boolean callRecursive = false;
-      if (type.isWoodenLog(block.getType())) {
+      if (type.isWoodenLog(currentBlock.getType())) {
         callRecursive = true;
-        treeLogs.add(block);
-      } else if (isLeaf(block.getType())) {
+        treeLogs.add(currentBlock);
+      } else if (isLeaf(currentBlock.getType())) {
         callRecursive = true;
-        treeLeaves.add(block);
+        treeLeaves.add(currentBlock);
       }
       if (callRecursive) {
         for (BlockFace face : BlockFace.values()) {
-          Block relative = block.getRelative(face);
-          if (relative.getLocation().distanceSquared(this)
-              <= type.getSearchRadius() * type.getSearchRadius()) {
-            getTreeLogs(relative, treeLogs, treeLeaves);
+          Block relative = currentBlock.getRelative(face);
+          if (LocationUtils.xzDistance(primaryBlock.getLocation(), relative.getLocation()) > 5) {
+            continue;
           }
+          getTreeLogs(primaryBlock, relative, treeLogs, treeLeaves);
         }
       }
     }
