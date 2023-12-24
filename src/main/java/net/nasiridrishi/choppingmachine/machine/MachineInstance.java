@@ -36,6 +36,61 @@ import org.bukkit.scheduler.BukkitTask;
 public class MachineInstance extends Location {
 
   private static final List<Location> foundTress = new ArrayList<>();
+  private static int runTimeId = 0;
+  @Getter
+  private final String worldName;
+  @Getter
+  private final BaseMachineType type;
+  @Getter
+  private final UUID owner;
+  /**
+   * List of logs found while searching for logs
+   */
+  private final ArrayList<Block> currentTreeLogs = new ArrayList<>();
+  //List of chopped logs to be added to chest
+  @Getter
+  private final List<ItemStack> choppedLogs = new ArrayList<>();
+  /**
+   * -- GETTER -- Instance id unique to location and machine type
+   */
+  @Getter
+  private final int id = runTimeId++;
+  @Getter
+  private Chest chest;
+  private boolean chestFull = false;
+  private int tickCounter = -1;
+  private boolean searchingTree = false;
+  private MachineHologram hologram;
+  private MachineStatus status = MachineStatus.IDLE;
+  @Setter
+  @Getter
+  private Material lastChoppedLog;
+  private MachinePath foundTree;
+  private BukkitTask searchTreeTask;
+
+  public MachineInstance(@NonNull BaseMachineType type, @NonNull UUID owner, @NonNull int x,
+      @NonNull int y, @NonNull int z, @NonNull String world) {
+    this(type, owner, x, y, z, Objects.requireNonNull(Bukkit.getWorld(world)));
+  }
+
+  public MachineInstance(@NonNull BaseMachineType type,
+      @NonNull UUID owner, @NonNull int x, @NonNull int y, @NonNull int z, @NonNull World world) {
+    super(world, x, y, z);
+
+    this.worldName = world.getName();
+
+    Objects.requireNonNull(type, "type cannot be null");
+    Objects.requireNonNull(owner, "owner cannot be null");
+
+    this.type = type;
+    this.owner = owner;
+
+    //check if chest is already placed
+    Block block = getBlock().getRelative(BlockFace.UP);
+    if (block.getState() instanceof Chest) {
+      this.chest = (Chest) block.getState();
+    }
+  }
 
   private static void removeFoundTree(Location location) {
     for (Location foundTree : foundTress) {
@@ -62,67 +117,13 @@ public class MachineInstance extends Location {
     return false;
   }
 
-  private static int runTimeId = 0;
-
-  @Getter
-  private final String worldName;
-
-  @Getter
-  private final BaseMachineType type;
-  @Getter
-  private final UUID owner;
-  /**
-   * List of logs found while searching for logs
-   */
-  private final ArrayList<Block> currentTreeLogs = new ArrayList<>();
-  //List of chopped logs to be added to chest
-  @Getter
-  private final List<ItemStack> choppedLogs = new ArrayList<>();
-  @Getter
-  private Chest chest;
-
-  private boolean chestFull = false;
-
-  private int tickCounter = -1;
-  private boolean searchingTree = false;
-  private MachineHologram hologram;
-  private MachineStatus status = MachineStatus.IDLE;
-  @Setter
-  @Getter
-  private Material lastChoppedLog;
-
-  private MachinePath foundTree;
-
-  private BukkitTask searchTreeTask;
-
-  /**
-   * -- GETTER -- Instance id unique to location and machine type
-   */
-  @Getter
-  private final int id = runTimeId++;
-
-  public MachineInstance(@NonNull BaseMachineType type, @NonNull UUID owner, @NonNull int x,
-      @NonNull int y, @NonNull int z, @NonNull String world) {
-    this(type, owner, x, y, z, Objects.requireNonNull(Bukkit.getWorld(world)));
-  }
-
-  public MachineInstance(@NonNull BaseMachineType type,
-      @NonNull UUID owner, @NonNull int x, @NonNull int y, @NonNull int z, @NonNull World world) {
-    super(world, x, y, z);
-
-    this.worldName = world.getName();
-
-    Objects.requireNonNull(type, "type cannot be null");
-    Objects.requireNonNull(owner, "owner cannot be null");
-
-    this.type = type;
-    this.owner = owner;
-
-    //check if chest is already placed
-    Block block = getBlock().getRelative(BlockFace.UP);
-    if (block.getState() instanceof Chest) {
-      this.chest = (Chest) block.getState();
-    }
+  public static MachineInstance fromJson(JsonObject jsonObject) {
+    BaseMachineType type = MachineManager.getInstance()
+        .getMachineType(jsonObject.getString("type"));
+    UUID owner = UUID.fromString(jsonObject.getString("owner"));
+    return new MachineInstance(type, owner, jsonObject.getInt("location_x"),
+        jsonObject.getInt("location_y"), jsonObject.getInt("location_z"),
+        jsonObject.getString("world"));
   }
 
   public boolean equals(Location location) {
@@ -131,7 +132,6 @@ public class MachineInstance extends Location {
         && location.getBlockY() == this.getBlockY()
         && location.getBlockZ() == this.getBlockZ();
   }
-
 
   @Override
   public boolean equals(Object obj) {
@@ -156,7 +156,6 @@ public class MachineInstance extends Location {
     ChoppingMachine.getInstance().getLogger()
         .info("Destroying machine with uid: " + getId());
   }
-
 
   public void onChestPlaced(@NonNull Chest chest) {
     this.chest = chest;
@@ -247,7 +246,6 @@ public class MachineInstance extends Location {
     }
     updateHologram();
   }
-
 
   public void updateHologram() {
     if (hologram != null) {
@@ -379,7 +377,6 @@ public class MachineInstance extends Location {
         newPos);
   }
 
-
   /**
    * Recursive method to get all connected logs to a log
    * <p>
@@ -425,7 +422,6 @@ public class MachineInstance extends Location {
     }
     return verified;
   }
-
 
   public String getStatus() {
     if (chest == null) {
@@ -553,15 +549,6 @@ public class MachineInstance extends Location {
     instObjBuilder.add("location_z", getZ());
     JsonObject instObj = instObjBuilder.build();
     object.add(locId(), instObj);
-  }
-
-  public static MachineInstance fromJson(JsonObject jsonObject) {
-    BaseMachineType type = MachineManager.getInstance()
-        .getMachineType(jsonObject.getString("type"));
-    UUID owner = UUID.fromString(jsonObject.getString("owner"));
-    return new MachineInstance(type, owner, jsonObject.getInt("location_x"),
-        jsonObject.getInt("location_y"), jsonObject.getInt("location_z"),
-        jsonObject.getString("world"));
   }
 
   public String locId() {

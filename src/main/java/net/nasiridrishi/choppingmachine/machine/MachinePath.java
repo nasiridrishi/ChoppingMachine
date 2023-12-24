@@ -22,17 +22,13 @@ import org.patheloper.mapping.bukkit.BukkitMapper;
  */
 public class MachinePath {
 
-  @Getter
-  private PathState pathStatus = null;
-
   private final List<Location> path = new ArrayList<>();
-
   @Getter
   private final Location origin;
-
   @Getter
   private final Location targetLog;
-
+  @Getter
+  private PathState pathStatus = null;
   private int maxTries;
 
   public MachinePath(@NonNull Pathfinder pathfinder, @NonNull Location from,
