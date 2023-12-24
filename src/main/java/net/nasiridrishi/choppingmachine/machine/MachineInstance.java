@@ -2,10 +2,8 @@ package net.nasiridrishi.choppingmachine.machine;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.json.Json;
@@ -337,7 +335,9 @@ public class MachineInstance extends Location {
   private void handleMoveToTree() {
     Location origin = foundTree.getOrigin().clone();
     if (LocationUtils.xzDistance(origin, foundTree.getTargetLog()) <= 3) {
-      this.currentTreeLogs.addAll(findConnectedLogs(foundTree.getTargetLog()));
+      ArrayList<Block> treeLogs = new ArrayList<>();
+      getTreeLogs(foundTree.getTargetLog().getBlock(), treeLogs, null);
+      this.currentTreeLogs.addAll(treeLogs);
       unsetPath();
       return;
     }
@@ -379,48 +379,80 @@ public class MachineInstance extends Location {
         newPos);
   }
 
-  private Set<Block> findConnectedLogs(Location primaryLog) {
-    return findConnectedLogs(primaryLog.getBlock(), null);
-  }
-
 
   /**
    * Recursive method to get all connected logs to a log
    * <p>
    * exploring in all directions to find connected logs
    */
-  private Set<Block> findConnectedLogs(Block primaryLog, Set<Block> foundLogs) {
-    if (foundLogs == null) {
-      foundLogs = new HashSet<>();
+  private void getTreeLogs(Block block, List<Block> treeLogs, List<Block> treeLeaves) {
+    if (treeLeaves == null) {
+      treeLeaves = new ArrayList<>();
     }
-
-    if (!foundLogs.contains(primaryLog) && type.isWoodenLog(primaryLog.getType())) {
-      foundLogs.add(primaryLog);
-
-      // Check all faces around primaryLog
-      BlockFace[] faces = {
-          BlockFace.UP,
-          BlockFace.DOWN,
-          BlockFace.NORTH,
-          BlockFace.EAST,
-          BlockFace.SOUTH,
-          BlockFace.WEST,
-          BlockFace.NORTH_EAST,
-          BlockFace.NORTH_WEST,
-          BlockFace.SOUTH_EAST,
-          BlockFace.SOUTH_WEST};
-
-      for (BlockFace face : faces) {
-        Block block = primaryLog.getRelative(face);
-        if (block.getLocation().distanceSquared(this)
-            <= type.getSearchRadius() * type.getSearchRadius()) {
-          findConnectedLogs(block, foundLogs);
+    if (!treeLogs.contains(block) && !treeLeaves.contains(block)) {
+      boolean callRecursive = false;
+      if (type.isWoodenLog(block.getType())) {
+        callRecursive = true;
+        treeLogs.add(block);
+      } else if (isLeaf(block.getType())) {
+        callRecursive = true;
+        treeLeaves.add(block);
+      }
+      if (callRecursive) {
+        for (BlockFace face : BlockFace.values()) {
+          Block relative = block.getRelative(face);
+          if (relative.getLocation().distanceSquared(this)
+              <= type.getSearchRadius() * type.getSearchRadius()) {
+            getTreeLogs(relative, treeLogs, treeLeaves);
+          }
         }
       }
     }
-
-    return foundLogs;
   }
+
+//  private Set<Block> getTreeLogs(Block primaryBlock, Set<Block> foundLogs, Set<Block> foundLeaves) {
+//    if (foundLogs == null) {
+//      foundLogs = new HashSet<>();
+//    }
+//    if (foundLeaves == null) {
+//      foundLeaves = new HashSet<>();
+//    }
+//
+//    if (!foundLogs.contains(primaryBlock) && !foundLeaves.contains(primaryBlock)) {
+//      boolean callRecursive = false;
+//      if (type.isWoodenLog(primaryBlock.getType())) {
+//        foundLogs.add(primaryBlock);
+//        callRecursive = true;
+//      } else if (isLeaf(primaryBlock.getType())) {
+//        foundLeaves.add(primaryBlock);
+//        callRecursive = true;
+//      }
+//      if (callRecursive) {
+//        // Check all faces around primaryLog
+//        BlockFace[] faces = {
+//            BlockFace.UP,
+//            BlockFace.DOWN,
+//            BlockFace.NORTH,
+//            BlockFace.EAST,
+//            BlockFace.SOUTH,
+//            BlockFace.WEST,
+//            BlockFace.NORTH_EAST,
+//            BlockFace.NORTH_WEST,
+//            BlockFace.SOUTH_EAST,
+//            BlockFace.SOUTH_WEST};
+//
+//        for (BlockFace face : faces) {
+//          Block block = primaryBlock.getRelative(face);
+//          if (block.getLocation().distanceSquared(this)
+//              <= type.getSearchRadius() * type.getSearchRadius()) {
+//            getTreeLogs(block, foundLogs, foundLeaves);
+//          }
+//        }
+//      }
+//    }
+//
+//    return foundLogs;
+//  }
 
   private boolean checkCounter() {
     if (tickCounter == -1) {
@@ -585,4 +617,14 @@ public class MachineInstance extends Location {
       searchTreeTask.cancel();
     }
   }
+
+  private boolean isLeaf(Material type) {
+    return type == Material.ACACIA_LEAVES
+        || type == Material.BIRCH_LEAVES
+        || type == Material.DARK_OAK_LEAVES
+        || type == Material.JUNGLE_LEAVES
+        || type == Material.OAK_LEAVES
+        || type == Material.SPRUCE_LEAVES;
+  }
+
 }
