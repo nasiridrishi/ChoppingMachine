@@ -37,6 +37,33 @@ import org.bukkit.scheduler.BukkitTask;
  */
 public class MachineInstance extends Location {
 
+  private static final List<Location> foundTress = new ArrayList<>();
+
+  private static void removeFoundTree(Location location) {
+    for (Location foundTree : foundTress) {
+      if (LocationUtils.equals(foundTree, location)) {
+        foundTress.remove(foundTree);
+        return;
+      }
+    }
+  }
+
+  //So that no two instances chop the same tree
+  private static boolean isTreeFound(Location location) {
+    for (Location foundTree : foundTress) {
+      if (LocationUtils.equals(foundTree, location)) {
+        return true;
+      }
+      BlockFace[] faces = {BlockFace.EAST, BlockFace.WEST, BlockFace.NORTH, BlockFace.SOUTH};
+      for (BlockFace face : faces) {
+        if (LocationUtils.equals(foundTree, location.getBlock().getRelative(face).getLocation())) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   private static int runTimeId = 0;
 
   @Getter
@@ -49,7 +76,7 @@ public class MachineInstance extends Location {
   /**
    * List of logs found while searching for logs
    */
-  private final ArrayList<Block> foundLogs = new ArrayList<>();
+  private final ArrayList<Block> currentTreeLogs = new ArrayList<>();
   //List of chopped logs to be added to chest
   @Getter
   private final List<ItemStack> choppedLogs = new ArrayList<>();
@@ -210,8 +237,8 @@ public class MachineInstance extends Location {
       return;
     }
 
-    //chop if foundLogs is not empty
-    if (!foundLogs.isEmpty()) {
+    //chop if current tree logs is not empty
+    if (!currentTreeLogs.isEmpty()) {
       this.status = MachineStatus.CHOPPING;
       chopLogs();
     } else if (foundTree == null) {
@@ -237,7 +264,7 @@ public class MachineInstance extends Location {
       return;
     }
     AtomicReference<Block> choppedBlock = new AtomicReference<>();
-    foundLogs.stream().findFirst().ifPresent(block -> {
+    currentTreeLogs.stream().findFirst().ifPresent(block -> {
       if (isInLoadedChunk(block.getX() >> 4, block.getZ() >> 4)) {
         type.attemptChop(this, block);
       }
@@ -245,7 +272,7 @@ public class MachineInstance extends Location {
       this.lastChoppedLog = block.getType();
     });
     if (choppedBlock.get() != null) {
-      foundLogs.remove(choppedBlock.get());
+      currentTreeLogs.remove(choppedBlock.get());
     }
   }
 
@@ -278,7 +305,9 @@ public class MachineInstance extends Location {
                     }
                     //check if block is a log block and is above dirt block
                     if (type.isWoodenLog(block.getType())
-                        && block.getRelative(BlockFace.DOWN).getType() == Material.DIRT) {
+                        && block.getRelative(BlockFace.DOWN).getType() == Material.DIRT
+                        && !isTreeFound(block.getLocation())) {
+                      foundTress.add(block.getLocation());
                       setDestinationTree(block.getLocation());
                       searchingTree = false;
                       return;
@@ -298,20 +327,27 @@ public class MachineInstance extends Location {
         location, 10);
   }
 
+  private void unsetPath() {
+    if (foundTree != null) {
+      removeFoundTree(foundTree.getTargetLog());
+      foundTree = null;
+    }
+  }
+
   private void handleMoveToTree() {
     Location origin = foundTree.getOrigin().clone();
-    if (LocationUtils.xzDistance(origin, foundTree.getTargetLog()) <= 2) {
-      this.foundLogs.addAll(findConnectedLogs(foundTree.getTargetLog()));
-      foundTree = null;
+    if (LocationUtils.xzDistance(origin, foundTree.getTargetLog()) <= 3) {
+      this.currentTreeLogs.addAll(findConnectedLogs(foundTree.getTargetLog()));
+      unsetPath();
       return;
     }
     if (!foundTree.shouldTryAgain()) {
-      foundTree = null;
+      unsetPath();
       return;
     }
     Location nextPos = foundTree.getNextPos();
     if (nextPos == null) {
-      foundTree = null;
+      unsetPath();
       return;
     }
     updatePos(nextPos);
@@ -426,10 +462,10 @@ public class MachineInstance extends Location {
       for (Material booster : boosters) {
         if (block.getType() == booster) {
           block.setType(Material.AIR);
-          foundLogs.forEach(log -> {
+          currentTreeLogs.forEach(log -> {
             this.type.attemptChop(this, log);
           });
-          foundLogs.clear();
+          currentTreeLogs.clear();
           return true;
         }
       }
