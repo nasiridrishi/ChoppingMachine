@@ -13,7 +13,9 @@ public class LocationUtils {
         + "," + location.getBlockZ();
   }
 
-
+  /**
+   * Check if block locations are the same for both locations
+   */
   public static boolean equals(Location location1, Location location2) {
     return Objects.equals(location1.getWorld(), location2.getWorld())
         && location1.getBlockX() == location2.getBlockX()
