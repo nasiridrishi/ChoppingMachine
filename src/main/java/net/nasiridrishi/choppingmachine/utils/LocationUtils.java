@@ -21,6 +21,9 @@ public class LocationUtils {
         && location1.getBlockZ() == location2.getBlockZ();
   }
 
+  /**
+   * finds the distance between two locations in the xz plane
+   */
   public static double xzDistance(double x1, double z1, double x2, double z2) {
     return Math.sqrt(Math.pow((x2 - x1), 2) + Math.pow((z2 - z1), 2));
   }
@@ -29,10 +32,14 @@ public class LocationUtils {
     return xzDistance(loc1.getX(), loc1.getZ(), loc2.getX(), loc2.getZ());
   }
 
+
   public static Block findBlockAround(Location block, Material type, int radius) {
     return findBlockAround(block.getBlock(), type, radius);
   }
 
+  /**
+   * finds a specific block type around a block in a given radius
+   */
   public static Block findBlockAround(Block block, Material type, int radius) {
     for (int i = 0; i < radius; i++) {
       for (int j = 0; j < radius; j++) {
