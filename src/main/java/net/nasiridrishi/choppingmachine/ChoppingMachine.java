@@ -26,6 +26,7 @@ public final class ChoppingMachine extends JavaPlugin {
 
   private CommandAPICommand mainCommand;
 
+  //Load logic
   @Override
   public void onLoad() {
     instance = this;
