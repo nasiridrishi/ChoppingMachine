@@ -18,26 +18,6 @@ chopping machines:
     * Default tree detection range: 25
     * Speed: 4x per second.
 
-## Time Taken
-
-<!-- Specify the total time taken to develop and complete the plugin test. -->
-~ 6 hours (this does not including the time taken to write this README.md and creating video etc)
-
-## Challenges and Issues
-
-<!-- Describe any challenges, roadblocks, or issues encountered during the development process and how they were addressed or resolved. -->
-
-1. I was not able to handle holograms and particles efficiently so had to use public libraries for
-   that as mentioned below.
-2. I was not able to efficiently search for trees in a given range and thus ran into some hoops and
-   did some research to makge it work properly.
-3. Keeping in mind the time constraint, I was not able test situations where if creepers blows up at
-   machine and how it would affect the machine.
-4. I was not able to test the plugin on a server with multiple players and thus I am not sure if the
-   plugin would work properly in that case I am quite certain it would handle very well.
-5. Have had difficulty in handling machine instances properly on chunk loads and unloads where I
-   would see dublicate instances being thrown, Spent sometime to fix this issue.
-
 ## Features and Functionalities
 
 1. Players can place a chopping machine and it will automatically chop down trees in a given range.
@@ -87,10 +67,4 @@ chopping machines:
 - Pathetic for handling path finding: https://github.com/patheloper/pathetic
 
 ---
-
-
-**Note:** I was not able to complete task: Special Block Interactions -> "Water: Should float and
-keep going on." because I could not understand what it actually meant. I am assuming it meant that
-the machine should float on water and keep going on. I tried to implement this but was not able to
-do so. I am not sure if I understood the task correctly.
 
